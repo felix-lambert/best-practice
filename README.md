@@ -1,18 +1,9 @@
 # clean-code-javascript
 
 ## Introduction
-![Humorous image of software quality estimation as a count of how many expletives
-you shout when reading code](http://www.osnews.com/images/comics/wtfm.jpg)
 
-Software engineering principles, from Robert C. Martin's book
-[*Clean Code*](https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882),
-adapted for JavaScript. This is not a style guide. It's a guide to producing
-[readable, reusable, and refactorable](https://github.com/ryanmcdermott/3rs-of-software-architecture) software in JavaScript.
-
-Not every principle herein has to be strictly followed, and even fewer will be
-universally agreed upon. These are guidelines and nothing more, but they are
-ones codified over many years of collective experience by the authors of
-*Clean Code*.
+Not every principle has to be strictly followed, and even fewer will be
+universally agreed upon. These are guidelines and nothing more.
 
 Our craft of software engineering is just a bit over 50 years old, and we are
 still learning a lot. When software architecture is as old as architecture
@@ -24,10 +15,18 @@ One more thing: knowing these won't immediately make you a better software
 developer, and working with them for many years doesn't mean you won't make
 mistakes. Every piece of code starts as a first draft, like wet clay getting
 shaped into its final form. Finally, we chisel away the imperfections when
-we review it with our peers. Don't beat yourself up for first drafts that need
-improvement. Beat up the code instead!
+we review it with our peers. 
+
+## **Consistent dev environments**
+
+Set your node version in engines in package.json.
+
+Why:
+
+It lets others know the version of node the project works on.
 
 ## **Variables**
+
 ### Use meaningful and pronounceable variable names
 
 **Bad:**
@@ -184,6 +183,310 @@ function createMicrobrewery(name = 'Hipster Brew Co.') {
 
 ```
 **[⬆ back to top](#table-of-contents)**
+
+## **Objects**
+### Avoid object literals
+If we need to create the same type of object in other places, then we’ll end up copy-pasting the object’s methods, data, and initialization. We need a way to create not just the one object, but a family of objects.
+
+**Bad:**
+```javascript
+var o = {
+  x: 42,
+  y: 3.14,
+  f: function() {},
+  g: function() {}
+};
+```
+
+**Good:**
+```javascript
+function thing() {
+  return {
+    x: 42,
+    y: 3.14,
+    f: function() {},
+    g: function() {}
+  };
+}
+
+var o = thing();
+```
+
+## **Factories**
+
+### First example
+
+```javascript
+const martialArtist = (state) => ({
+  hit: () => console.log('Fly kick')
+})
+
+const vulgar = (state) => ({
+  taunt: () => console.log('Show is over!!!!')
+})
+
+const BadassHero = (name) => {
+  const state = {
+    name
+  };
+
+  return Object.assign({}, martialArtist(state), vulgar(state))
+}
+
+const HitGirl = BadassHero('Hit-Girl')
+hitGirl.taunt()
+hitGirl.hit()
+```
+
+```javascript
+// composition is designing your types with what they do
+// inheritance is designing your types with what they are
+const barker = (state) => ({
+  bark: () => console.log('Woof, I am ' + state.name)
+})
+
+const driver = (state) => ({
+  drive: () => state.position = state.position + state.speed
+})
+
+barker({name: 'karp'}).bark()
+// Woof, I am karo
+
+const murderRobotDog = (name) => {
+  let state = {
+    name,
+    speed: 100,
+    position: 0
+  }
+  return Object.assign(
+    {},
+    barker(state),
+    driver(state)
+  )
+}
+
+murderRobotDog('sniffles').bark()
+```
+
+## **Functionnal pattern**
+
+```javascript
+const xs = [1,2,3,4,5];
+
+// impure
+const minimum = 21;
+const checkAge = age => age >= minimum;
+
+// pure
+const checkAge = (age) => {
+  const minimum = 21;
+  return age >= minimum;
+};
+```
+
+
+### Names
+
+Having multiple names for the same concept is a common source of confusion in projects. There is also the issue of generic code. 
+
+**Bad:**
+```javascript
+// specific to our current blog
+const validArticles = articles =>
+  articles.filter(article => article !== null && article !== undefined),
+```
+
+**Good:**
+```javascript
+// vastly more relevant for future projects
+const compact = xs => xs.filter(x => x !== null && x !== undefined);
+```
+
+### this
+
+I avoid using this like a dirty nappy. There's really no need when writing functional code. 
+
+
+## **Observable pattern**
+
+Objects that notifies other objects when the state changes. The other objects are called observers. It basically describes events. Javascript and the DOM are heavily event. So if we don't have observer pattern, we don't have events.
+
+It enables one-to-many data binding between elements so that when one object changes state, all its dependents are notified and updated automatically. This one-way data binding can be event driven. With this pattern, you can build reusable code that solves for your specific needs.
+
+You dispatch an event, you can then listen to it. There is a state, and depending on what the state looks like, I rerender this.
+
+In javascript, you have a DOM. It's an object that you can mutate. 
+
+### The subscribe method
+
+To add new events do:
+
+```javascript
+subscribe(fn) {
+  this.observers.push(fn);
+}
+```
+
+The list of events is a list of callback functions.
+
+```javascript
+// Arrange
+const observer = new EventObserver();
+const fn = () => {};
+
+// Act
+observer.subscribe(fn);
+
+// Assert
+assert.strictEqual(observer.observers.length, 1);
+```
+
+To remove events do:
+
+```javascript
+unsubscribe(fn) {
+  this.observers = this.observers.filter((subscriber) => subscriber !== fn);
+}
+```
+
+```javascript
+// Arrange
+const observer = new EventObserver();
+const fn = () => {};
+
+observer.subscribe(fn);
+
+// Act
+observer.unsubscribe(fn);
+
+// Assert
+assert.strictEqual(observer.observers.length, 0);
+```
+
+To call all events do:
+
+```javascript
+broadcast(data) {
+  this.observers.forEach((subscriber) => subscriber(data));
+}
+```
+
+This iterates through the list of observed events and executes all callbacks. With this, you get the necessary one-to-many relationship to the subscribed events. You pass in the data parameter which makes the callback data bound.
+
+To test this broadcast method, do:
+
+```javascript
+// Arrange
+const observer = new EventObserver();
+
+let subscriberHasBeenCalled = false;
+const fn = (data) => subscriberHasBeenCalled = data;
+
+observer.subscribe(fn);
+
+// Act
+observer.broadcast(true);
+
+// Assert
+assert(subscriberHasBeenCalled);
+```
+
+## **Currying**
+
+You can do currying for dependency injection instead of class
+
+
+```javascript
+const makeCreateUser = connection => name => 
+  connection.table('users').insert({
+    is_new: true,
+    full_name: name
+  }).then(user => user.id)
+
+const makeDeleteUser = connection => id
+
+const makeBanUser = connection => id
+
+const connection = db({
+  host: 'database',
+  port: 1212
+})
+
+const factories = [
+  makeCreateUser,
+  makeDeleteUser,
+  makeUpdateUser,
+  makeBanUser
+]
+
+// I use destructuring
+const [
+  createUser,
+  deleteUser,
+  updateUser,
+  banUser
+] = factories.map(factory => factory(connection))
+
+// const createUser = makeCreateUser(connection)
+// const deleteUser = makeDeleteUser(connection)
+// const updateUser = makeUpdateUser(connection)
+// const banUser = makeBanUser(connection)
+
+const app = new App(createUser)
+app.start()
+```
+**Bad:**
+```javascript
+const createUser = makeCreateUser(connection)
+const deleteUser = makeDeleteUser(connection)
+const updateUser = makeUpdateUser(connection)
+const banUser = makeBanUser(connection)
+```
+
+**Good:**
+```javascript
+const factories = [
+  makeCreateUser,
+  makeDeleteUser,
+  makeUpdateUser,
+  makeBanUser
+]
+
+// I use destructuring
+const [
+  createUser,
+  deleteUser,
+  updateUser,
+  banUser
+] = factories.map(factory => factory(connection))
+```
+
+
+**Best:**
+```javascript
+
+const makeUserUtils = ({ connection, mailService }) => ({
+  createUser: connection.table('users').insert({
+    is_new: true,
+    full_name: name
+  }).then(user => user.id),
+  deleteUser: connection => id => connection.table('users').delete(id),
+  banUser: id => connection.table('users').update({
+    $set: {
+      banned: true,
+    }
+  }).then(() => mailService('jos@gmail.com', 'i banned you'))
+})
+
+// I use destructuring
+const {
+  makeCreateUser,
+  makeDeleteUser,
+  makeUpdateUser,
+  makeBanUser
+} = makeUserUtils({ connection, emailService })
+
+```
 
 ## **Functions**
 ### Function arguments (2 or fewer ideally)
@@ -753,61 +1056,55 @@ one thing. When you have classes and functions that have `if` statements, you
 are telling your user that your function does more than one thing. Remember,
 just do one thing.
 
-
-### Avoid type-checking (part 1)
-JavaScript is untyped, which means your functions can take any type of argument.
-Sometimes you are bitten by this freedom and it becomes tempting to do
-type-checking in your functions. There are many ways to avoid having to do this.
-The first thing to consider is consistent APIs.
-
 **Bad:**
 ```javascript
-function travelToTexas(vehicle) {
-  if (vehicle instanceof Bicycle) {
-    vehicle.pedal(this.currentLocation, new Location('texas'));
-  } else if (vehicle instanceof Car) {
-    vehicle.drive(this.currentLocation, new Location('texas'));
+class Airplane {
+  // ...
+  getCruisingAltitude() {
+    switch (this.type) {
+      case '777':
+        return this.getMaxAltitude() - this.getPassengerCount();
+      case 'Air Force One':
+        return this.getMaxAltitude();
+      case 'Cessna':
+        return this.getMaxAltitude() - this.getFuelExpenditure();
+    }
   }
 }
 ```
 
 **Good:**
+
 ```javascript
-function travelToTexas(vehicle) {
-  vehicle.move(this.currentLocation, new Location('texas'));
+class Airplane {
+  // ...
 }
-```
-**[⬆ back to top](#table-of-contents)**
 
-### Avoid type-checking (part 2)
-If you are working with basic primitive values like strings and integers,
-and you can't use polymorphism but you still feel the need to type-check,
-you should consider using TypeScript. It is an excellent alternative to normal
-JavaScript, as it provides you with static typing on top of standard JavaScript
-syntax. The problem with manually type-checking normal JavaScript is that
-doing it well requires so much extra verbiage that the faux "type-safety" you get
-doesn't make up for the lost readability. Keep your JavaScript clean, write
-good tests, and have good code reviews. Otherwise, do all of that but with
-TypeScript (which, like I said, is a great alternative!).
-
-**Bad:**
-```javascript
-function combine(val1, val2) {
-  if (typeof val1 === 'number' && typeof val2 === 'number' ||
-      typeof val1 === 'string' && typeof val2 === 'string') {
-    return val1 + val2;
+class Boeing777 extends Airplane {
+  // ...
+  getCruisingAltitude() {
+    return this.getMaxAltitude() - this.getPassengerCount();
   }
-
-  throw new Error('Must be of type String or Number');
 }
+
+class AirForceOne extends Airplane {
+  // ...
+  getCruisingAltitude() {
+    return this.getMaxAltitude();
+  }
+}
+
+class Cessna extends Airplane {
+  // ...
+  getCruisingAltitude() {
+    return this.getMaxAltitude() - this.getFuelExpenditure();
+  }
+}
+
+
 ```
 
-**Good:**
-```javascript
-function combine(val1, val2) {
-  return val1 + val2;
-}
-```
+
 **[⬆ back to top](#table-of-contents)**
 
 ### Don't over-optimize
@@ -835,54 +1132,11 @@ for (let i = 0; i < list.length; i++) {
 ```
 **[⬆ back to top](#table-of-contents)**
 
-### Remove dead code
-Dead code is just as bad as duplicate code. There's no reason to keep it in
-your codebase. If it's not being called, get rid of it! It will still be safe
-in your version history if you still need it.
-
-**Bad:**
-```javascript
-function oldRequestModule(url) {
-  // ...
-}
-
-function newRequestModule(url) {
-  // ...
-}
-
-const req = newRequestModule;
-inventoryTracker('apples', req, 'www.inventory-awesome.io');
-
-```
-
-**Good:**
-```javascript
-function newRequestModule(url) {
-  // ...
-}
-
-const req = newRequestModule;
-inventoryTracker('apples', req, 'www.inventory-awesome.io');
-```
-**[⬆ back to top](#table-of-contents)**
-
-## **Objects and Data Structures**
 ### Use getters and setters
-Using getters and setters to access data on objects could be better than simply
-looking for a property on an object. "Why?" you might ask. Well, here's an
-unorganized list of reasons why:
-
-* When you want to do more beyond getting an object property, you don't have
-to look up and change every accessor in your codebase.
-* Makes adding validation simple when doing a `set`.
-* Encapsulates the internal representation.
-* Easy to add logging and error handling when getting and setting.
-* You can lazy load your object's properties, let's say getting it from a
-server.
-
 
 **Bad:**
 ```javascript
+
 function makeBankAccount() {
   // ...
 
@@ -923,15 +1177,13 @@ function makeBankAccount() {
 const account = makeBankAccount();
 account.setBalance(100);
 ```
-**[⬆ back to top](#table-of-contents)**
-
 
 ### Make objects have private members
+
 This can be accomplished through closures (for ES5 and below).
 
 **Bad:**
 ```javascript
-
 const Employee = function(name) {
   this.name = name;
 };
@@ -961,16 +1213,183 @@ console.log(`Employee name: ${employee.getName()}`); // Employee name: John Doe
 delete employee.name;
 console.log(`Employee name: ${employee.getName()}`); // Employee name: John Doe
 ```
-**[⬆ back to top](#table-of-contents)**
 
 ### Use method chaining
-This pattern is very useful in JavaScript and you see it in many libraries such
-as jQuery and Lodash. It allows your code to be expressive, and less verbose.
-For that reason, I say, use method chaining and take a look at how clean your code
-will be. In your class functions, simply return `this` at the end of every function,
-and you can chain further class methods onto it.
 
-**[⬆ back to top](#table-of-contents)**
+This pattern is very useful in JavaScript and you see it in many libraries such as jQuery and Lodash. It allows your code to be expressive, and less verbose. For that reason, I say, use method chaining and take a look at how clean your code will be. In your class functions, simply return this at the end of every function, and you can chain further class methods onto it.
+
+**Bad:**
+```javascript
+class Car {
+  constructor(make, model, color) {
+    this.make = make;
+    this.model = model;
+    this.color = color;
+  }
+
+  setMake(make) {
+    this.make = make;
+  }
+
+  setModel(model) {
+    this.model = model;
+  }
+
+  setColor(color) {
+    this.color = color;
+  }
+
+  save() {
+    console.log(this.make, this.model, this.color);
+  }
+}
+
+const car = new Car('Ford','F-150','red');
+car.setColor('pink');
+car.save();
+```
+
+**Good:**
+```javascript
+class Car {
+  constructor(make, model, color) {
+    this.make = make;
+    this.model = model;
+    this.color = color;
+  }
+
+  setMake(make) {
+    this.make = make;
+    // NOTE: Returning this for chaining
+    return this;
+  }
+
+  setModel(model) {
+    this.model = model;
+    // NOTE: Returning this for chaining
+    return this;
+  }
+
+  setColor(color) {
+    this.color = color;
+    // NOTE: Returning this for chaining
+    return this;
+  }
+
+  save() {
+    console.log(this.make, this.model, this.color);
+    // NOTE: Returning this for chaining
+    return this;
+  }
+}
+
+const car = new Car('Ford','F-150','red')
+  .setColor('pink')
+  .save();
+
+```
+
+**Bad:**
+```javascript
+const person = {
+  name: 'John',
+  age: 28
+}
+const newPerson = person
+newPerson.age = 30
+console.log(newPerson === person) // true
+console.log(person) // { name: 'John', age: 30 }
+
+```
+
+Object.assign is an ES6 feature that takes objects as parameters. It will merge all objects you pass it into the first one. You are probably wondering why the first parameter is an empty object {}. If the first parameter would be ‘person’ we would still mutate person. If it would be { age: 30 }, we’d overwrite 30 with 28 again because that would be coming after. This solution works, we kept person intact, we treated it as immutable!
+
+**Good:**
+```javascript
+const person = {
+  name: 'John',
+  age: 28
+}
+const newPerson = Object.assign({}, person, {
+  age: 30
+})
+
+console.log(newPerson === person) // false
+console.log(person) // { name: 'John', age: 28 }
+console.log(newPerson) // { name: 'John', age: 30 }
+
+```
+
+**Even better:**
+```javascript
+const person = {
+  name: 'John',
+  age: 28
+}
+const newPerson = {
+  ...person,
+  age: 30
+}
+console.log(newPerson === person) // false
+console.log(newPerson)
+```
+
+This time, even cleaner code. First, the ‘spread’ operator (...), copies all the properties from person to the new object. Then we define a new ‘age’ property that overrides the old one. Note that order matters, if age: 30 would be defined above ...person, it would be overridden by age: 28.
+
+## Delete item in object
+
+
+**Good**:
+```javascript
+const person = {
+  name: 'John',
+  password: '123',
+  age: 28
+}
+const newPerson = Object.keys(person).reduce((obj, key) => {
+  if (key !== property) {
+    return { ...obj, [key]: person[key] }
+  }
+  return obj
+}, {})
+```
+
+### Arrays
+
+**Bad**:
+```javascript
+const characters = [ 'Obi-Wan', 'Vader' ]
+const newCharacters = characters
+newCharacters.push('Luke')
+console.log(characters === newCharacters) // true :-(
+```
+
+**Good**:
+```javascript
+const characters = [ 'Obi-Wan', 'Vader' ]
+const newCharacters = [ ...characters, 'Luke' ]
+console.log(characters === newCharacters) // false
+console.log(characters) // [ 'Obi-Wan', 'Vader' ]
+console.log(newCharacters) // [ 'Obi-Wan', 'Vader', 'Luke' ]
+
+```
+
+### When to use map?
+
+.map() when you want to transform elements in an array.
+
+### When to use filter?
+
+.filter() when you want to select a subset of multiple elements from an array.
+
+### When to use find?
+
+.find() When you want to select a single element from an array.
+
+### When to use reduce?
+
+.reduce() when you want derive a single value from multiple elements in an array.
+
 
 ### Prefer composition over inheritance
 As stated famously in [*Design Patterns*](https://en.wikipedia.org/wiki/Design_Patterns) by the Gang of Four,
@@ -1111,95 +1530,6 @@ describe('MakeMomentJSGreatAgain', () => {
   });
 });
 ```
-**[⬆ back to top](#table-of-contents)**
-
-## **Concurrency**
-### Use Promises, not callbacks
-Callbacks aren't clean, and they cause excessive amounts of nesting. With ES2015/ES6,
-Promises are a built-in global type. Use them!
-
-**Bad:**
-```javascript
-import { get } from 'request';
-import { writeFile } from 'fs';
-
-get('https://en.wikipedia.org/wiki/Robert_Cecil_Martin', (requestErr, response) => {
-  if (requestErr) {
-    console.error(requestErr);
-  } else {
-    writeFile('article.html', response.body, (writeErr) => {
-      if (writeErr) {
-        console.error(writeErr);
-      } else {
-        console.log('File written');
-      }
-    });
-  }
-});
-
-```
-
-**Good:**
-```javascript
-import { get } from 'request';
-import { writeFile } from 'fs';
-
-get('https://en.wikipedia.org/wiki/Robert_Cecil_Martin')
-  .then((response) => {
-    return writeFile('article.html', response);
-  })
-  .then(() => {
-    console.log('File written');
-  })
-  .catch((err) => {
-    console.error(err);
-  });
-
-```
-**[⬆ back to top](#table-of-contents)**
-
-### Async/Await are even cleaner than Promises
-Promises are a very clean alternative to callbacks, but ES2017/ES8 brings async and await
-which offer an even cleaner solution. All you need is a function that is prefixed
-in an `async` keyword, and then you can write your logic imperatively without
-a `then` chain of functions. Use this if you can take advantage of ES2017/ES8 features
-today!
-
-**Bad:**
-```javascript
-import { get } from 'request-promise';
-import { writeFile } from 'fs-promise';
-
-get('https://en.wikipedia.org/wiki/Robert_Cecil_Martin')
-  .then((response) => {
-    return writeFile('article.html', response);
-  })
-  .then(() => {
-    console.log('File written');
-  })
-  .catch((err) => {
-    console.error(err);
-  });
-
-```
-
-**Good:**
-```javascript
-import { get } from 'request-promise';
-import { writeFile } from 'fs-promise';
-
-async function getCleanCodeArticle() {
-  try {
-    const response = await get('https://en.wikipedia.org/wiki/Robert_Cecil_Martin');
-    await writeFile('article.html', response);
-    console.log('File written');
-  } catch(err) {
-    console.error(err);
-  }
-}
-```
-**[⬆ back to top](#table-of-contents)**
-
 
 ## **Error Handling**
 Thrown errors are a good thing! They mean the runtime has successfully
@@ -1239,108 +1569,178 @@ try {
 }
 ```
 
-### Don't ignore rejected promises
-For the same reason you shouldn't ignore caught errors
-from `try/catch`.
+## **React**
+
+React is a library for building the view of an application. The view rerender based on the state. 
+
+React looks at the virtual dom and compare it to the real dom and applies the smallest possible change to the real dom. 
+
+### Declarative programming
+
+It gives the structure for doing declarative programming. The view should be rendered given a certain state. With declarative programming you are just declaring a relationship.
+
+### The DOM
+
+We want to touch the DOM as little as possible.
 
 **Bad:**
 ```javascript
-getdata()
-  .then((data) => {
-    functionThatMightThrow(data);
-  })
-  .catch((error) => {
-    console.log(error);
-  });
+
+const MyComponent = () => {
+  <div>
+    <OtherComponent type="a" className="colorful" foo={123} bar={456} />
+    <OtherComponent type="b" className="colorful" foo={123} bar={456} />
+  </div>
+}
+
 ```
 
 **Good:**
 ```javascript
-getdata()
-  .then((data) => {
-    functionThatMightThrow(data);
-  })
-  .catch((error) => {
-    // One option (more noisy than console.log):
-    console.error(error);
-    // Another option:
-    notifyUserOfError(error);
-    // Another option:
-    reportErrorToService(error);
-    // OR do all three!
-  });
+
+const MyOtherComponent = ({type}) => {
+  <div>
+    <OtherComponent type={type} className="colorful" foo={123} bar={456} />
+  </div>
+}
+
+
+const OtherComponent = () => {
+  <div>
+    <MyOtherComponent type="a" />
+    <MyOtherComponent type="b" />
+  </div>
+}
+
 ```
-
-**[⬆ back to top](#table-of-contents)**
-
-
-## **Formatting**
-Formatting is subjective. Like many rules herein, there is no hard and fast
-rule that you must follow. The main point is DO NOT ARGUE over formatting.
-There are [tons of tools](http://standardjs.com/rules.html) to automate this.
-Use one! It's a waste of time and money for engineers to argue over formatting.
-
-For things that don't fall under the purview of automatic formatting
-(indentation, tabs vs. spaces, double vs. single quotes, etc.) look here
-for some guidance.
-
-### Use consistent capitalization
-JavaScript is untyped, so capitalization tells you a lot about your variables,
-functions, etc. These rules are subjective, so your team can choose whatever
-they want. The point is, no matter what you all choose, just be consistent.
 
 **Bad:**
 ```javascript
-const DAYS_IN_WEEK = 7;
-const daysInMonth = 30;
+const done = current >= goal
 
-const songs = ['Back In Black', 'Stairway to Heaven', 'Hey Jude'];
-const Artists = ['ACDC', 'Led Zeppelin', 'The Beatles'];
-
-function eraseDatabase() {}
-function restore_database() {}
-
-class animal {}
-class Alpaca {}
 ```
 
 **Good:**
 ```javascript
-const DAYS_IN_WEEK = 7;
-const DAYS_IN_MONTH = 30;
+const isComplete = current >= goal
 
-const SONGS = ['Back In Black', 'Stairway to Heaven', 'Hey Jude'];
-const ARTISTS = ['ACDC', 'Led Zeppelin', 'The Beatles'];
-
-function eraseDatabase() {}
-function restoreDatabase() {}
-
-class Animal {}
-class Alpaca {}
 ```
-**[⬆ back to top](#table-of-contents)**
-
-## **Comments**
-### Only comment things that have business logic complexity.
-Comments are an apology, not a requirement. Good code *mostly* documents itself.
 
 **Bad:**
 ```javascript
-function hashIt(data) {
-  // The hash
-  let hash = 0;
+import title from 'Title'
 
-  // Length of string
-  const length = data.length;
+export const Thingie = ({description}) => {
+  <div class="thingie">
+    <div class="description-wrapper">
+      <Description value={description} />
+    </div>
+  </div>
+}
 
-  // Loop through every character in data
-  for (let i = 0; i < length; i++) {
-    // Get character code.
-    const char = data.charCodeAt(i);
-    // Make the hash
-    hash = ((hash << 5) - hash) + char;
-    // Convert to 32-bit integer
-    hash &= hash;
+
+export const ThingieWithTitle = ({description}) => {
+  <div class="thingie">
+    <Title value={title} />
+    <div class="description-wrapper">
+      <Description value={description} />
+    <div>
+  <div>
+}
+
+```
+
+**Good:**
+```javascript
+
+import title from 'Title'
+
+export const Thingie = ({description, children}) => {
+  <div class="thingie">
+    {children}
+    <div class="description-wrapper">
+      <Description value={description} />
+    </div>
+  </div>
+}
+
+
+export const ThingieWithTitle = ({title, ...others}) => {
+  <Thingie {...others}>
+    <Title value={title} />
+  </Thingie>
+}
+
+```
+
+**Bad:**
+```javascript
+const splitLocale = locale.split('-')
+const language = splitLocale[0]
+const country = splitLocale[1]
+
+```
+
+**Good:**
+```javascript
+const [ language, country ] = locale.split('-')
+```
+
+### Do more in componentDidUpdate
+
+**Bad:**
+```javascript
+navigateToContact: function(newContactId) {
+  if (this._hasUnsavedChanges()) {
+    this._saveChanges();
+  }
+  
+  this.setState({
+    currentContactId: newContactId
+  });
+}
+
+navigateToContact('contact2')
+```
+
+**Good:**
+```javascript
+componentDidUpdate: function(prevProps, prevState) {
+  if (prevState.currentContactId !== state.currentContactId) {
+    if (this._hasUnsavedChanges()) {
+      this._saveChanges();
+    }
+  }
+}
+```
+
+### A container does data fetching and then renders its corresponding sub-component.
+
+**Bad:**
+```javascript
+class CommentList extends React.Component {
+  getInitialState () {
+    return { comments: [] };
+  }
+ 
+  componentDidMount () {
+    $.ajax({
+      url: "/my-comments.json",
+      dataType: 'json',
+      success: function(comments) {
+        this.setState({comments: comments});
+      }.bind(this)
+    });
+  }
+ 
+  render () {
+    return (
+      <ul>
+        {this.state.comments.map(({body, author}) => {
+          return <li>{body}—{author}</li>;
+        })}
+      </ul>
+    );
   }
 }
 ```
@@ -1348,55 +1748,538 @@ function hashIt(data) {
 **Good:**
 ```javascript
 
-function hashIt(data) {
-  let hash = 0;
-  const length = data.length;
-
-  for (let i = 0; i < length; i++) {
-    const char = data.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-
-    // Convert to 32-bit integer
-    hash &= hash;
+// CommentList.js
+class CommentList extends React.Component {
+  render() {
+    return (
+      <ul>
+        {this.props.comments.map(({body, author}) => {
+          return <li>{body}—{author}</li>;
+        })}
+      </ul>
+    );
+  }
+}
+// CommentListContainer.js
+class CommentListContainer extends React.Component {
+  getInitialState () {
+    return { comments: [] }
+  }
+ 
+  componentDidMount () {
+    $.ajax({
+      url: "/my-comments.json",
+      dataType: 'json',
+      success: function(comments) {
+        this.setState({comments: comments});
+      }.bind(this)
+    });
+  }
+ 
+  render () {
+    return <CommentList comments={this.state.comments} />;
   }
 }
 
 ```
 
-**[⬆ back to top](#table-of-contents)**
-
-### Avoid positional markers
-They usually just add noise. Let the functions and variable names along with the
-proper indentation and formatting give the visual structure to your code.
+### Do not keep state in render
 
 **Bad:**
 ```javascript
-////////////////////////////////////////////////////////////////////////////////
-// Scope Model Instantiation
-////////////////////////////////////////////////////////////////////////////////
-$scope.model = {
-  menu: 'foo',
-  nav: 'bar'
-};
+render () {
+  let make = `Make: ${this.props.make}`;
+ 
+  return <div>{name}</div>;
+}
+```
 
-////////////////////////////////////////////////////////////////////////////////
-// Action setup
-////////////////////////////////////////////////////////////////////////////////
-const actions = function() {
-  // ...
+**Good:**
+```javascript
+render () {
+  return <div>{`Make: ${this.props.make}`}</div>;
+}
+```
+
+**Good:**
+```javascript
+get make () {
+  return `Make: ${this.props.make}`;
+}
+ 
+render () {
+  return <div>{this.make}</div>;
+}
+```
+
+### Don’t put compound conditions in render
+
+
+**Good:**
+```javascript
+get isEngineOn() {
+  return this.state.started && this.state.running;
+},
+ 
+render() {
+  return <div>{(this.isEngineOn) && 'Running..'}</div>;
+}
+```
+
+### Separate stateful aspects from rendering
+
+**Bad:**
+```javascript
+class User extends Component {
+  state = { loading: true };
+
+  render() {
+    const { loading, user } = this.state;
+    return loading
+      ? <div>Loading...</div>
+      : <div>
+          <div>
+            First name: {user.firstName}
+          </div>
+          <div>
+            First name: {user.lastName}
+          </div>
+          ...
+        </div>;
+  }
+
+  componentDidMount() {
+    fetchUser(this.props.id)
+      .then((user) => { this.setState({ loading: false, user })})
+  }
+}
+```
+
+**Good:**
+```javascript
+class User extends Component {
+  state = { loading: true };
+
+  render() {
+    const { loading, user } = this.state;
+    return loading ? <Loading /> : <RenderUser user={user} />;
+  }
+
+  componentDidMount() {
+    fetchUser(this.props.id)
+      .then(user => { this.setState({ loading: false, user })})
+  }
+}
+```
+
+### Rest/spread
+
+**Bad:**
+```javascript
+// Dirty
+const MyComponent = (props) => {
+  const others = Object.assign({}, props);
+  delete others.className;
+  return (
+    <div className={props.className}>
+      {React.createElement(MyOtherComponent, others)}
+    </div>
+  );
 };
 ```
 
 **Good:**
 ```javascript
-$scope.model = {
-  menu: 'foo',
-  nav: 'bar'
-};
-
-const actions = function() {
-  // ...
-};
+// Clean
+const MyComponent = ({ className, ...others }) => (
+  <div className={className}>
+    <MyOtherComponent {...others} />
+  </div>
+);
 ```
 
-**[⬆ back to top](#table-of-contents)**
+## Mobx
+
+## Observable state
+
+MobX provides functions to make data observable. Observable data can be watched by other pieces of code which may efficiently update when the state changes. Observable data is primarily created in MobX using the observable function.
+
+We figured out that if all our model objects became Observables and all our React components became Observers of the model, we wouldn’t need to apply any further magic to make sure the relevant part, and only the relevant part, of our UI gets updated. 
+
+Use @observer (mobx-react) or autorun() and it's automatically 'subscribed'.
+
+One of the core philosophies of MobX is that the observable state should be as minimal as possible. Everything else should be derived via computed properties. 
+
+#### observable
+
+What we can watch for changes.
+
+#### Autorun
+
+Runs when the store is changing. Runs every time observables inside of autorun changes.
+
+#### autorunAsync
+
+Same as autorun but you can specify how much time after it should run after the data changes in observables.
+
+#### when
+
+Same as autorun but you set predicate to specify exactly when it should run
+
+## Derivations
+
+Functions that watch observable data are called derivations. MobX has 2 primary types of derivations: computed values and reactions. Computed values update a value based on other data, while reactions produce side effects: updates to a UI, a network call, or a logging statement for example. MobX provides a computed function for defining computed values; in most cases reactions will likely be mostly defined using a framework specific helper library like mobx-react or ng2-mobx. MobX does provide some lower level libraries for reactions though, including autorun and when.
+
+#### Computed
+
+Derivation of your data. Mobx is using getters and setters behind the field. They are highly optimized, so use them wherever possible.
+
+
+By thinking of your client-state in terms of a minimal set of observables and augmenting it with derivations (computed properties), you can model a variety of scenarios effortlessly. Computed properties derive their value from other observables. If any of these depending observables change, the computed property changes as well.
+
+#### Reaction
+
+reaction: same as autorun but you can choose which observable to track. What do you want things to happen, when there is a change. Take three parameters. Many different types of functions that can be executed based on observable values.
+
+### Actions 
+
+Code that updates observable state is known as an action. MobX has a formalized version of actions which can be defined using the action function, but it is also possible to modify state directly using any normal JavaScript code and maintain observable behavior.
+
+### Observer
+It must be applied first - before @inject - like this @inject("something") @observer class Component {}.
+
+It creates a higher-order-component (HOC) that wraps a React component to automatically update on changes to the observable state. Internally, observer() keeps track of observables that are dereferenced in the render method of the component. When any of them change, a re-render of the component is triggered.
+
+You should use observer on every component that displays observable data. Even the small ones. observer allows components to render independently from their parent and in general this means that the more you use observer, the better the performance become. 
+
+@observer automatically applies the shouldComponentUpdate from PureRenderMixin. It knows that it has to rerender, so the shouldComponentUpdate is skipped.
+
+The core observers are autorun, reaction, and when.
+
+You can transform a react component to observe the observables used in the render() function. When they change, a re-render of the react component is triggered. Internally, observer() creates a wrapper component that uses a plain reaction() to watch the observables and re-render as a side-effect. This is why we treat UI as being just another side-effect, albeit a very visible and obvious one. 
+
+### Provider
+
+Provider is used to put things (dependencies) on react's context. The context is available to all descendant components. The things are identified by name: <Provider name={thing}>. Provider is a component that can pass stores (or other stuff) using React's context mechanism to child components. This is useful if you have things that you don't want to pass through multiple layers of components explicitly.
+
+### Inject
+
+@inject is used to retrieve these things from context in descendants of Provider. Inject takes these things from context by name and makes them available by moving them to props with the same name.
+So inject("name") will take "name" thing from the context and make it available as this.props.name
+inject can be used to pick up those stores. It is a higher order component that takes a list of strings and makes those stores available to the wrapped component.
+
+```javascript
+export default inject('WeathorStore')(observer(App))
+```
+
+This store typically doesn't have much logic in it, but will store a plethora of loosely coupled pieces of information about the UI. 
+
+Things you will typically find in UI stores:
+
+* Session information
+* Information about how far your application has loaded
+* Information that will not be stored in the backend
+* Information that affects the UI globally
+  - Window dimensions
+  - Accessibility information
+  - Current language
+  - Currently active theme
+* User interface state as soon as it affects multiple, further unrelated components:
+  - Current selection
+  - Visibility of toolbars, etc.
+  - State of a wizard
+  - State of a global overlay
+
+
+## Cypress
+
+1. Don’t target elements based on CSS attributes such as: id, class, tag
+2. Don’t target elements that may change their textContent
+3. Add data-* attributes to make it easy to target elements
+
+Given a button that we want to interact with:
+
+<button id="main" class="btn btn-large" data-cy="submit">Submit</button>
+
+```javascript
+cy.get('button').click()	 Never	Worst - too generic, no context.
+cy.get('.btn.btn-large').click()	 Never	Bad. Coupled to styling. Highly subject to change.
+cy.get('#main').click()	 Sparingly	Better. But still coupled to styling or JS event listeners.
+cy.contains('Submit').click()	 Depends	Much better. But still coupled to text content that may change.
+cy.get('[data-cy=submit]').click()	 Always	Best. Insulated from all changes.
+```
+
+ Anti-Pattern: Coupling multiple tests together.
+
+ Best Practice: Tests should always be able to be run independently from one another and still pass.
+
+ Simply put an .only on the test and refresh the browser.
+
+If this test can run by itself and pass - congratulations you have written a good test.
+
+If this is not the case, then you should refactor and change your approach.
+
+**Bad:**
+```javascript
+// an example of what NOT TO DO
+describe('my form', function () {
+  it('visits the form', function () {
+    cy.visit('/users/new')
+  })
+
+  it('requires first name', function () {
+    cy.get('#first').type('Johnny')
+  })
+
+  it('requires last name', function () {
+    cy.get('#last').type('Appleseed')
+  })
+
+  it('can submit a valid form', function () {
+    cy.get('form').submit()
+  })
+})
+```
+
+**Good:**
+```javascript
+// a bit better
+describe('my form', function () {
+  it('can submit a valid form', function () {
+    cy.visit('/users/new')
+
+    cy.log('filling out first name') // if you really need this
+    cy.get('#first').type('Johnny')
+
+    cy.log('filling out last name') // if you really need this
+    cy.get('#last').type('Appleseed')
+
+    cy.log('submitting form') // if you really need this
+    cy.get('form').submit()
+  })
+})
+```
+
+**Good:**
+```javascript
+// a bit better
+describe('my form', function () {
+  it('can submit a valid form', function () {
+    cy.visit('/users/new')
+
+    cy.log('filling out first name') // if you really need this
+    cy.get('#first').type('Johnny')
+
+    cy.log('filling out last name') // if you really need this
+    cy.get('#last').type('Appleseed')
+
+    cy.log('submitting form') // if you really need this
+    cy.get('form').submit()
+  })
+})
+```
+
+**Good:**
+```javascript
+describe('my form', function () {
+  beforeEach(function () {
+    cy.visit('/users/new')
+    cy.get('#first').type('Johnny')
+    cy.get('#last').type('Appleseed')
+  })
+
+  it('displays form validation', function () {
+    cy.get('#first').clear() // clear out first name
+    cy.get('form').submit()
+    cy.get('#errors').should('contain', 'First name is required')
+  })
+
+  it('can submit a valid form', function () {
+    cy.get('form').submit()
+  })
+})
+```
+
+**Bad:**
+```javascript
+describe('Searches Page', () => {
+  it('should load the searches page', () => {
+    before(() => {
+      // visit searches page
+    })
+  })
+
+  it('should click the "My Favorites Tab"', () => {
+    // Click "My Favorites Tab"
+  })
+
+  it('should have the correct column names on the My Favorites Tab', () => {
+    // Assert column names
+    // whoops, if the previous test fails, this will also fail
+  })
+
+  it('should click the "All Searches Tab"', () => {
+    // Click "All Searches Tab"
+  })
+
+  it('should have the correct column names on the All Searches Tab', () => {
+    // Assert column names
+    // whoops, if the previous test fails, this will also fail
+  })
+})
+```
+
+
+
+**Good:**
+```javascript
+describe('Searches Page', () => {
+  // run once for the entire "Searches Page" block
+  // we use `before` instead of `beforeEach` for speed because our tests can handle it only be run once
+  before(() => {
+    // visit searches page
+  })
+
+  describe('My Favorites Tab', () => {
+    // Run for every `it` block in the "My Favorites Tab" block
+    beforeEach(() => {
+      // Make sure we are in the right state for each `it` block
+      // Click the "All Searches Tab"
+    })
+
+    it('should have the correct column names', () => {
+      // Assert column names
+    })
+  })
+})
+```
+
+**Bad:**
+```javascript
+// bad - duplicate information and hard to separate setup
+describe('Verify expected columns under different searches tabs', () => {
+  it('should verify expected columns under My Saved, All Searches, Shared Searches and My Favorite tabs', () => {
+    // setup and assertions
+    // maybe somebody later puts more here because there doesn't seem to be any focus
+  })
+})
+```
+
+**Good:**
+```javascript
+// Outline:
+// Verify expected columns under different searches tabs
+//   - should verify expected columns under My Saved, All Searches, Shared Searches and My Favorite tabs
+// good
+describe('Searches Page', () => {
+  before(() => {
+    // visit searches page
+  })
+
+  describe('My Saved Tab', () => {
+    beforeEach(() => {
+      // click "My Saved" tab
+    })
+
+    it('should have the correct column names', () => {
+      // verify column names for "My Saved Tab"
+    })
+
+    // This seems like a nice place to add another test that need the "My Saved Tab" active
+  })
+
+  describe('All Searches Tab', () => {
+    beforeEach(() => {
+      // click "All Searches" tab
+    })
+
+    it('should have the correct column names', () => {
+      // verify column names for "All Searches Tab"
+    })
+  })
+})
+// Outline:
+// Searches Page
+//  - My Saved Tab
+//    - should have the correct column names
+//  - All Searches Tab
+//    - should have the correct column names
+```
+
+
+**Bad:**
+```javascript
+// bad
+cy.get('body').should($body => {
+  expect($body.find('[data-testid=Tab]').length === 2).to.equal(true) // expected false to equal true
+})
+```
+
+**Good:**
+```javascript
+// better
+cy.get('body').should($body => {
+  expect($body).to.have.descendants('[data-testid=Tab]') // expected '<body>' to have descendants '[data-testid=Tab]'
+  expect($body.find('[data-testid=Tab]')).to.have.length(2) // expected '[ <div[data-testid=Tab]>, 4 more... ]' to have a length of 2 but got 5
+})
+
+// best - we can use the shorthand
+cy
+  .get('body')
+  .should('have.descendants', '[data-testid=Tab]') // expected '<body>' to have descendants '[data-testid=Tab]'
+  .find('[data-testid=Tab]')
+  .should('have.length', 2) // expected '[ <div[data-testid=Tab]>, 4 more... ]' to have a length of 2 but got 5
+```
+
+Use URL query params:
+
+```javascript
+// tell your backend server which campaign you want sent
+// so you can deterministically know what it is ahead of time
+cy.visit('https://app.com?campaign=A')
+
+...
+
+cy.visit('https://app.com?campaign=B')
+
+...
+
+cy.visit('https://app.com?campaign=C')
+```
+
+Now there is not even a need to do conditional testing since you are able to know ahead of time what campaign was sent. Yes, this may require server side updates, but you have to make an untestable app testable if you want to test it!
+
+
+
+## Styled components
+
+**Bad:**
+```javascript
+const darkSection = styled.div`
+  p {
+    color: #FFFFFF;
+  }
+`
+```
+
+**Good:**
+```javascript
+import { ThemeProvider } from 'styled-components'
+
+const P = styled.p`
+  color: ${props => props.theme.color};
+`
+
+P.defaultProps = {
+  theme: {
+    color: #000000;
+  }
+}
+
+const DarkSection = () => (
+  <ThemeProvider theme={{ color: '#000000' }}>
+    /* dark section content */
+  </ThemeProvider>
+)
+```
+
