@@ -11,12 +11,6 @@ itself, maybe then we will have harder rules to follow. For now, let these
 guidelines serve as a touchstone by which to assess the quality of the
 JavaScript code that you and your team produce.
 
-One more thing: knowing these won't immediately make you a better software
-developer, and working with them for many years doesn't mean you won't make
-mistakes. Every piece of code starts as a first draft, like wet clay getting
-shaped into its final form. Finally, we chisel away the imperfections when
-we review it with our peers. 
-
 ## **Consistent dev environments**
 
 Set your node version in engines in package.json.
@@ -59,10 +53,7 @@ getUser();
 We will read more code than we will ever write. It's important that the code we
 do write is readable and searchable. By *not* naming variables that end up
 being meaningful for understanding our program, we hurt our readers.
-Make your names searchable. Tools like
-[buddy.js](https://github.com/danielstjules/buddy.js) and
-[ESLint](https://github.com/eslint/eslint/blob/660e0918933e6e7fede26bc675a0763a6b357c94/docs/rules/no-magic-numbers.md)
-can help identify unnamed constants.
+Make your names searchable. 
 
 **Bad:**
 ```javascript
@@ -212,9 +203,77 @@ function thing() {
 var o = thing();
 ```
 
+# **Module**
+
+JavaScript modules are self-contained code blocks, that perform specific work.
+
 ## **Factories**
 
 ### First example
+
+**Bad:**
+
+```javascript
+const Animal = function(name) {
+  this.name = name;
+}
+
+Animal.prototype.walk = function() {
+  console.log(this.name + " walks");
+}
+
+poo = new Animal("poo")
+tommy = new Animal("tommy")
+poo.walk()
+tommy.walk()
+
+```
+
+**Bad:**
+
+```javascript
+
+const Animal = {
+  name: "not_given_yet", //remove this if you like
+  walk() {
+    console.log(this.name + " walks");
+  }
+}
+const poo = Object.assign({}, Animal, {name: "poo"})
+poo.walk()
+
+```
+
+**Bad:**
+
+```javascript
+
+const tommy = Object.create(Animal) //this sets up prototype chain
+tommy.name = "tommy"
+tommy.walk()
+
+```
+
+**Good:**
+
+```javascript
+
+const Animal = function(name){
+    const animal = {};
+    animal.name = name;
+    animal.walk = function(){
+        console.log(this.name + " walks");
+    }
+    return animal;
+};
+
+const poo = Animal("poo");
+const tommy = Animal("tommy");
+poo.walk() // poo walks
+tommy.walk() // tommy walks
+
+
+```
 
 ```javascript
 const martialArtist = (state) => ({
@@ -306,7 +365,6 @@ const compact = xs => xs.filter(x => x !== null && x !== undefined);
 
 I avoid using this like a dirty nappy. There's really no need when writing functional code. 
 
-
 ## **Observable pattern**
 
 Objects that notifies other objects when the state changes. The other objects are called observers. It basically describes events. Javascript and the DOM are heavily event. So if we don't have observer pattern, we don't have events.
@@ -317,84 +375,9 @@ You dispatch an event, you can then listen to it. There is a state, and dependin
 
 In javascript, you have a DOM. It's an object that you can mutate. 
 
-### The subscribe method
-
-To add new events do:
-
-```javascript
-subscribe(fn) {
-  this.observers.push(fn);
-}
-```
-
-The list of events is a list of callback functions.
-
-```javascript
-// Arrange
-const observer = new EventObserver();
-const fn = () => {};
-
-// Act
-observer.subscribe(fn);
-
-// Assert
-assert.strictEqual(observer.observers.length, 1);
-```
-
-To remove events do:
-
-```javascript
-unsubscribe(fn) {
-  this.observers = this.observers.filter((subscriber) => subscriber !== fn);
-}
-```
-
-```javascript
-// Arrange
-const observer = new EventObserver();
-const fn = () => {};
-
-observer.subscribe(fn);
-
-// Act
-observer.unsubscribe(fn);
-
-// Assert
-assert.strictEqual(observer.observers.length, 0);
-```
-
-To call all events do:
-
-```javascript
-broadcast(data) {
-  this.observers.forEach((subscriber) => subscriber(data));
-}
-```
-
-This iterates through the list of observed events and executes all callbacks. With this, you get the necessary one-to-many relationship to the subscribed events. You pass in the data parameter which makes the callback data bound.
-
-To test this broadcast method, do:
-
-```javascript
-// Arrange
-const observer = new EventObserver();
-
-let subscriberHasBeenCalled = false;
-const fn = (data) => subscriberHasBeenCalled = data;
-
-observer.subscribe(fn);
-
-// Act
-observer.broadcast(true);
-
-// Assert
-assert(subscriberHasBeenCalled);
-```
-
 ## **Currying**
 
 You can do currying for dependency injection instead of class
-
 
 ```javascript
 const makeCreateUser = connection => name => 
@@ -434,6 +417,7 @@ const [
 
 const app = new App(createUser)
 app.start()
+
 ```
 **Bad:**
 ```javascript
@@ -460,7 +444,6 @@ const [
   banUser
 ] = factories.map(factory => factory(connection))
 ```
-
 
 **Best:**
 ```javascript
@@ -504,18 +487,6 @@ argument.
 Since JavaScript allows you to make objects on the fly, without a lot of class
 boilerplate, you can use an object if you are finding yourself needing a
 lot of arguments.
-
-To make it obvious what properties the function expects, you can use the ES2015/ES6
-destructuring syntax. This has a few advantages:
-
-1. When someone looks at the function signature, it's immediately clear what
-properties are being used.
-2. Destructuring also clones the specified primitive values of the argument
-object passed into the function. This can help prevent side effects. Note:
-objects and arrays that are destructured from the argument object are NOT
-cloned.
-3. Linters can warn you about unused properties, which would be impossible
-without destructuring.
 
 **Bad:**
 ```javascript
@@ -683,8 +654,7 @@ to have two or more separate functions that do much of the same things. Removing
 duplicate code means creating an abstraction that can handle this set of
 different things with just one function/module/class.
 
-Getting the abstraction right is critical, that's why you should follow the
-SOLID principles laid out in the *Classes* section. Bad abstractions can be
+Getting the abstraction right is critical. Bad abstractions can be
 worse than duplicate code, so be careful! Having said this, if you can make
 a good abstraction, do it! Don't repeat yourself, otherwise you'll find yourself
 updating multiple places anytime you want to change one thing.
@@ -823,20 +793,7 @@ function createTempFile(name) {
 **[⬆ back to top](#table-of-contents)**
 
 ### Avoid Side Effects (part 1)
-A function produces a side effect if it does anything other than take a value in
-and return another value or values. A side effect could be writing to a file,
-modifying some global variable, or accidentally wiring all your money to a
-stranger.
 
-Now, you do need to have side effects in a program on occasion. Like the previous
-example, you might need to write to a file. What you want to do is to
-centralize where you are doing this. Don't have several functions and classes
-that write to a particular file. Have one service that does it. One and only one.
-
-The main point is to avoid common pitfalls like sharing state between objects
-without any structure, using mutable data types that can be written to by anything,
-and not centralizing where your side effects occur. If you can do this, you will
-be happier than the vast majority of other programmers.
 
 **Bad:**
 ```javascript
@@ -868,37 +825,6 @@ console.log(newName); // ['Ryan', 'McDermott'];
 **[⬆ back to top](#table-of-contents)**
 
 ### Avoid Side Effects (part 2)
-In JavaScript, primitives are passed by value and objects/arrays are passed by
-reference. In the case of objects and arrays, if your function makes a change
-in a shopping cart array, for example, by adding an item to purchase,
-then any other function that uses that `cart` array will be affected by this
-addition. That may be great, however it can be bad too. Let's imagine a bad
-situation:
-
-The user clicks the "Purchase", button which calls a `purchase` function that
-spawns a network request and sends the `cart` array to the server. Because
-of a bad network connection, the `purchase` function has to keep retrying the
-request. Now, what if in the meantime the user accidentally clicks "Add to Cart"
-button on an item they don't actually want before the network request begins?
-If that happens and the network request begins, then that purchase function
-will send the accidentally added item because it has a reference to a shopping
-cart array that the `addItemToCart` function modified by adding an unwanted
-item.
-
-A great solution would be for the `addItemToCart` to always clone the `cart`,
-edit it, and return the clone. This ensures that no other functions that are
-holding onto a reference of the shopping cart will be affected by any changes.
-
-Two caveats to mention to this approach:
-  1. There might be cases where you actually want to modify the input object,
-but when you adopt this programming practice you will find that those cases
-are pretty rare. Most things can be refactored to have no side effects!
-
-  2. Cloning big objects can be very expensive in terms of performance. Luckily,
-this isn't a big issue in practice because there are
-[great libraries](https://facebook.github.io/immutable-js/) that allow
-this kind of programming approach to be fast and not as memory intensive as
-it would be for you to manually clone objects and arrays.
 
 **Bad:**
 ```javascript
@@ -917,15 +843,6 @@ const addItemToCart = (cart, item) => {
 **[⬆ back to top](#table-of-contents)**
 
 ### Don't write to global functions
-Polluting globals is a bad practice in JavaScript because you could clash with another
-library and the user of your API would be none-the-wiser until they get an
-exception in production. Let's think about an example: what if you wanted to
-extend JavaScript's native Array method to have a `diff` method that could
-show the difference between two arrays? You could write your new function
-to the `Array.prototype`, but it could clash with another library that tried
-to do the same thing. What if that other library was just using `diff` to find
-the difference between the first and last elements of an array? This is why it
-would be much better to just use ES2015/ES6 classes and simply extend the `Array` global.
 
 **Bad:**
 ```javascript
@@ -1109,10 +1026,7 @@ class Cessna extends Airplane {
 
 ### Don't over-optimize
 Modern browsers do a lot of optimization under-the-hood at runtime. A lot of
-times, if you are optimizing then you are just wasting your time. [There are good
-resources](https://github.com/petkaantonov/bluebird/wiki/Optimization-killers)
-for seeing where optimization is lacking. Target those in the meantime, until
-they are fixed if they can be.
+times, if you are optimizing then you are just wasting your time. 
 
 **Bad:**
 ```javascript
@@ -2283,3 +2197,39 @@ const DarkSection = () => (
 )
 ```
 
+1. Set
+
+You can use the Set object to handle the work of pulling out unique values. 
+
+
+If you pass your array of colors into a set, you’re nearly there. ​  ​const​ colors = [​'black'​, ​'black'​, ​'chocolate'​]; ​  ​  ​const​ unique = ​new​ Set(colors); ​  ​// Set {'black', 'chocolate'}​ You probably noticed that the value of the object is a Set containing only one instance of each color. And that may seem like a problem. You don’t want a Set—you want an array of unique items. Well, by now you may have guessed the solution: the spread operator. You can use the spread operator on Set much like you did with Map. The only difference is that Set returns an array.
+
+If you pass your array of colors into a set, you’re nearly there. ​  ​
+
+```javascript
+const​ colors = [​'black'​, ​'black'​, ​'chocolate'​];
+​const​ unique = ​new​ Set(colors); ​  ​
+
+// Set {'black', 'chocolate'}​ 
+
+```
+
+You probably noticed that the value of the object is a Set containing only one instance of each color. And that may seem like a problem. You don’t want a Set—you want an array of unique items. Well, by now you may have guessed the solution: the spread operator. You can use the spread operator on Set much like you did with Map. The only difference is that Set returns an array. Exactly what you want! Now you can refactor the getUnique() function to a one liner. 
+
+If you try to add a value that already exists, it will be ignored. Order is preserved, and the initial point a value is added will remain. If you try to add an item that’s there already, it keeps the original position. 
+
+```javascript
+​let​ names = ​new​ Set(); 
+ 
+names.add(​'joe'​); 
+​// Set { 'joe'}​ 
+ 
+names.add(​'bea'​); 
+​// Set { 'joe', 'bea'}​ ​
+ 
+names.add(​'joe'​); ​  
+​// Set { 'joe', 'bea'}​
+
+```
+
+Say you want to keep a collection of credit cards that belong to a user. You may want to query whether a particular credit card exists in your collection. Array is a poor choice for such operations; we really need a Set. JavaScript has finally agreed with that sentiment. 
