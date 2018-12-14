@@ -11,6 +11,8 @@ itself, maybe then we will have harder rules to follow. For now, let these
 guidelines serve as a touchstone by which to assess the quality of the
 JavaScript code that you and your team produce.
 
+The best way to find use cases for new syntax is to explore open source libraries. I usually have a few large projects—React, Redux, Lodash—that I search for syntax examples. All you need to do is go to GitHub, Gitlab, or anywhere the project is hosted and search for the syntax. When I was trying to learn how to use Map, I went to React and searched for new Map and found a few good examples. I discovered this generator pattern by looking through Khan Academy on github. You’ll quickly see a lot of usage patterns. And if you don’t see many examples, that’s a clue that the syntax may not be very valuable or at least not widely understood.
+
 ## **Consistent dev environments**
 
 Set your node version in engines in package.json.
@@ -25,14 +27,60 @@ It lets others know the version of node the project works on.
 
 **Bad:**
 ```javascript
-const yyyymmdstr = moment().format('YYYY/MM/DD');
+let d
+let elapsed
+const ages = arr.map((i) => i.age)
 ```
 
 **Good:**
 ```javascript
-const currentDate = moment().format('YYYY/MM/DD');
+let daysSinceModification
+const agesOfUsers = users.map((user) => user.age)
 ```
+
+
 **[⬆ back to top](#table-of-contents)**
+
+### Make meaningful distinctions and don't add extra, unnecessary nouns to the variable name
+
+**Bad:**
+```javascript
+let nameString
+let theUsers
+```
+
+**Good:**
+```javascript
+// DO
+let name
+let users
+```
+
+### Make your variable names easy to pronounce, because for the human mind it takes less effort to process.
+
+When you are doing code reviews with your fellow developers, these names are easier to reference. In short, don't cause extra mental mapping with your names.
+
+**Bad:**
+
+```javascript
+let fName, lName
+let cntr
+
+let full = false
+if (cart.size > 100) {
+  full = true
+}
+```
+
+**Good:**
+```javascript
+let firstName, lastName
+let counter
+
+const MAX_CART_SIZE = 100
+// ...
+const isFull = cart.size > MAX_CART_SIZE
+```
 
 ### Use the same vocabulary for the same type of variable
 
@@ -173,7 +221,308 @@ function createMicrobrewery(name = 'Hipster Brew Co.') {
 }
 
 ```
+
+
+
+## **Functions**
+### Function arguments (2 or fewer ideally)
+Limiting the amount of function parameters is incredibly important because it
+makes testing your function easier. Having more than three leads to a
+combinatorial explosion where you have to test tons of different cases with
+each separate argument.
+
+One or two arguments is the ideal case, and three should be avoided if possible.
+Anything more than that should be consolidated. Usually, if you have
+more than two arguments then your function is trying to do too much. In cases
+where it's not, most of the time a higher-level object will suffice as an
+argument.
+
+Since JavaScript allows you to make objects on the fly, without a lot of class
+boilerplate, you can use an object if you are finding yourself needing a
+lot of arguments.
+
+**Bad:**
+```javascript
+function createMenu(title, body, buttonText, cancellable) {
+  // ...
+}
+```
+
+**Good:**
+```javascript
+function createMenu({ title, body, buttonText, cancellable }) {
+  // ...
+}
+
+createMenu({
+  title: 'Foo',
+  body: 'Bar',
+  buttonText: 'Baz',
+  cancellable: true
+});
+```
 **[⬆ back to top](#table-of-contents)**
+
+
+### Functions should do one thing
+This is by far the most important rule in software engineering. When functions
+do more than one thing, they are harder to compose, test, and reason about.
+When you can isolate a function to just one action, they can be refactored
+easily and your code will read much cleaner. If you take nothing else away from
+this guide other than this, you'll be ahead of many developers.
+
+Your functions should do one thing only on one level of abstraction.
+
+**Bad:**
+```javascript
+function emailClients(clients) {
+  clients.forEach((client) => {
+    const clientRecord = database.lookup(client);
+    if (clientRecord.isActive()) {
+      email(client);
+    }
+  });
+}
+```
+
+**Good:**
+```javascript
+function emailActiveClients(clients) {
+  clients
+    .filter(isActiveClient)
+    .forEach(email);
+}
+
+function isActiveClient(client) {
+  const clientRecord = database.lookup(client);
+  return clientRecord.isActive();
+}
+```
+
+
+
+**[⬆ back to top](#table-of-contents)**
+
+### Function names should say what they do
+
+Use long, descriptive names. A long descriptive name is way better than a short, enigmatic name or a long descriptive comment.
+
+**Bad:**
+```javascript
+function addToDate(date, month) {
+  // ...
+}
+
+const date = new Date();
+
+// It's hard to tell from the function name what is added
+addToDate(date, 1);
+```
+
+**Good:**
+```javascript
+function addMonthToDate(month, date) {
+  // ...
+}
+
+const date = new Date();
+addMonthToDate(1, date);
+```
+
+**Bad:**
+
+```javascript
+function inv (user) { /* implementation */ }
+```
+
+**Good:**
+```javascript
+function inviteUser(emailAddress) { /* implementation */ }
+```
+
+**[⬆ back to top](#table-of-contents)**
+
+### Functions should only be one level of abstraction
+When you have more than one level of abstraction your function is usually
+doing too much. Splitting up functions leads to reusability and easier
+testing.
+
+**Bad:**
+```javascript
+function parseBetterJSAlternative(code) {
+  const REGEXES = [
+    // ...
+  ];
+
+  const statements = code.split(' ');
+  const tokens = [];
+  REGEXES.forEach((REGEX) => {
+    statements.forEach((statement) => {
+      // ...
+    });
+  });
+
+  const ast = [];
+  tokens.forEach((token) => {
+    // lex...
+  });
+
+  ast.forEach((node) => {
+    // parse...
+  });
+}
+```
+
+**Good:**
+```javascript
+function parseBetterJSAlternative(code) {
+  const tokens = tokenize(code);
+  const ast = lexer(tokens);
+  ast.forEach((node) => {
+    // parse...
+  });
+}
+
+function tokenize(code) {
+  const REGEXES = [
+    // ...
+  ];
+
+  const statements = code.split(' ');
+  const tokens = [];
+  REGEXES.forEach((REGEX) => {
+    statements.forEach((statement) => {
+      tokens.push( /* ... */ );
+    });
+  });
+
+  return tokens;
+}
+
+function lexer(tokens) {
+  const ast = [];
+  tokens.forEach((token) => {
+    ast.push( /* ... */ );
+  });
+
+  return ast;
+}
+```
+
+**Bad**
+
+```javascript
+function getUserRouteHandler (req, res) {
+  const { userId } = req.params
+  // inline SQL query
+  knex('user')
+    .where({ id: userId })
+    .first()
+    .then((user) => res.json(user))
+}
+```
+
+**Good**
+```javascript
+// User model (eg. models/user.js)
+const tableName = 'user'
+const User = {
+  getOne (userId) {
+    return knex(tableName)
+      .where({ id: userId })
+      .first()
+  }
+}
+
+// route handler (eg. server/routes/user/get.js)
+function getUserRouteHandler (req, res) {
+  const { userId } = req.params
+  User.getOne(userId)
+    .then((user) => res.json(user))
+}
+```
+
+**[⬆ back to top](#table-of-contents)**
+
+### Remove duplicate code
+Do your absolute best to avoid duplicate code. Duplicate code is bad because it
+means that there's more than one place to alter something if you need to change
+some logic.
+
+Imagine if you run a restaurant and you keep track of your inventory: all your
+tomatoes, onions, garlic, spices, etc. If you have multiple lists that
+you keep this on, then all have to be updated when you serve a dish with
+tomatoes in them. If you only have one list, there's only one place to update!
+
+Oftentimes you have duplicate code because you have two or more slightly
+different things, that share a lot in common, but their differences force you
+to have two or more separate functions that do much of the same things. Removing
+duplicate code means creating an abstraction that can handle this set of
+different things with just one function/module/class.
+
+Getting the abstraction right is critical. Bad abstractions can be
+worse than duplicate code, so be careful! Having said this, if you can make
+a good abstraction, do it! Don't repeat yourself, otherwise you'll find yourself
+updating multiple places anytime you want to change one thing.
+
+**Bad:**
+```javascript
+function showDeveloperList(developers) {
+  developers.forEach((developer) => {
+    const expectedSalary = developer.calculateExpectedSalary();
+    const experience = developer.getExperience();
+    const githubLink = developer.getGithubLink();
+    const data = {
+      expectedSalary,
+      experience,
+      githubLink
+    };
+
+    render(data);
+  });
+}
+
+function showManagerList(managers) {
+  managers.forEach((manager) => {
+    const expectedSalary = manager.calculateExpectedSalary();
+    const experience = manager.getExperience();
+    const portfolio = manager.getMBAProjects();
+    const data = {
+      expectedSalary,
+      experience,
+      portfolio
+    };
+
+    render(data);
+  });
+}
+```
+
+**Good:**
+```javascript
+function showEmployeeList(employees) {
+  employees.forEach((employee) => {
+    const expectedSalary = employee.calculateExpectedSalary();
+    const experience = employee.getExperience();
+
+    const data = {
+      expectedSalary,
+      experience
+    };
+
+    switch (employee.type) {
+      case 'manager':
+        data.portfolio = employee.getMBAProjects();
+        break;
+      case 'developer':
+        data.githubLink = employee.getGithubLink();
+        break;
+    }
+
+    render(data);
+  });
+}
+```
 
 ## **Objects**
 ### Avoid object literals
@@ -329,6 +678,28 @@ murderRobotDog('sniffles').bark()
 
 ## **Functionnal pattern**
 
+Use pure functions without side effects, whenever you can. They are really easy to use and test.
+
+**Bad:**
+```javascript
+function addItemToCart (cart, item, quantity = 1) {
+  const alreadyInCart = cart.get(item.id) || 0
+  cart.set(item.id, alreadyInCart + quantity)
+  return cart
+}
+```
+
+**Good:**
+```javascript
+function addItemToCart (cart, item, quantity = 1) {
+  const cartCopy = new Map(cart)
+  const alreadyInCart = cartCopy.get(item.id) || 0
+  cartCopy.set(item.id, alreadyInCart + quantity)
+  return cartCopy
+}
+
+```
+
 ```javascript
 const xs = [1,2,3,4,5];
 
@@ -469,253 +840,6 @@ const {
   makeBanUser
 } = makeUserUtils({ connection, emailService })
 
-```
-
-## **Functions**
-### Function arguments (2 or fewer ideally)
-Limiting the amount of function parameters is incredibly important because it
-makes testing your function easier. Having more than three leads to a
-combinatorial explosion where you have to test tons of different cases with
-each separate argument.
-
-One or two arguments is the ideal case, and three should be avoided if possible.
-Anything more than that should be consolidated. Usually, if you have
-more than two arguments then your function is trying to do too much. In cases
-where it's not, most of the time a higher-level object will suffice as an
-argument.
-
-Since JavaScript allows you to make objects on the fly, without a lot of class
-boilerplate, you can use an object if you are finding yourself needing a
-lot of arguments.
-
-**Bad:**
-```javascript
-function createMenu(title, body, buttonText, cancellable) {
-  // ...
-}
-```
-
-**Good:**
-```javascript
-function createMenu({ title, body, buttonText, cancellable }) {
-  // ...
-}
-
-createMenu({
-  title: 'Foo',
-  body: 'Bar',
-  buttonText: 'Baz',
-  cancellable: true
-});
-```
-**[⬆ back to top](#table-of-contents)**
-
-
-### Functions should do one thing
-This is by far the most important rule in software engineering. When functions
-do more than one thing, they are harder to compose, test, and reason about.
-When you can isolate a function to just one action, they can be refactored
-easily and your code will read much cleaner. If you take nothing else away from
-this guide other than this, you'll be ahead of many developers.
-
-**Bad:**
-```javascript
-function emailClients(clients) {
-  clients.forEach((client) => {
-    const clientRecord = database.lookup(client);
-    if (clientRecord.isActive()) {
-      email(client);
-    }
-  });
-}
-```
-
-**Good:**
-```javascript
-function emailActiveClients(clients) {
-  clients
-    .filter(isActiveClient)
-    .forEach(email);
-}
-
-function isActiveClient(client) {
-  const clientRecord = database.lookup(client);
-  return clientRecord.isActive();
-}
-```
-**[⬆ back to top](#table-of-contents)**
-
-### Function names should say what they do
-
-**Bad:**
-```javascript
-function addToDate(date, month) {
-  // ...
-}
-
-const date = new Date();
-
-// It's hard to tell from the function name what is added
-addToDate(date, 1);
-```
-
-**Good:**
-```javascript
-function addMonthToDate(month, date) {
-  // ...
-}
-
-const date = new Date();
-addMonthToDate(1, date);
-```
-**[⬆ back to top](#table-of-contents)**
-
-### Functions should only be one level of abstraction
-When you have more than one level of abstraction your function is usually
-doing too much. Splitting up functions leads to reusability and easier
-testing.
-
-**Bad:**
-```javascript
-function parseBetterJSAlternative(code) {
-  const REGEXES = [
-    // ...
-  ];
-
-  const statements = code.split(' ');
-  const tokens = [];
-  REGEXES.forEach((REGEX) => {
-    statements.forEach((statement) => {
-      // ...
-    });
-  });
-
-  const ast = [];
-  tokens.forEach((token) => {
-    // lex...
-  });
-
-  ast.forEach((node) => {
-    // parse...
-  });
-}
-```
-
-**Good:**
-```javascript
-function parseBetterJSAlternative(code) {
-  const tokens = tokenize(code);
-  const ast = lexer(tokens);
-  ast.forEach((node) => {
-    // parse...
-  });
-}
-
-function tokenize(code) {
-  const REGEXES = [
-    // ...
-  ];
-
-  const statements = code.split(' ');
-  const tokens = [];
-  REGEXES.forEach((REGEX) => {
-    statements.forEach((statement) => {
-      tokens.push( /* ... */ );
-    });
-  });
-
-  return tokens;
-}
-
-function lexer(tokens) {
-  const ast = [];
-  tokens.forEach((token) => {
-    ast.push( /* ... */ );
-  });
-
-  return ast;
-}
-```
-**[⬆ back to top](#table-of-contents)**
-
-### Remove duplicate code
-Do your absolute best to avoid duplicate code. Duplicate code is bad because it
-means that there's more than one place to alter something if you need to change
-some logic.
-
-Imagine if you run a restaurant and you keep track of your inventory: all your
-tomatoes, onions, garlic, spices, etc. If you have multiple lists that
-you keep this on, then all have to be updated when you serve a dish with
-tomatoes in them. If you only have one list, there's only one place to update!
-
-Oftentimes you have duplicate code because you have two or more slightly
-different things, that share a lot in common, but their differences force you
-to have two or more separate functions that do much of the same things. Removing
-duplicate code means creating an abstraction that can handle this set of
-different things with just one function/module/class.
-
-Getting the abstraction right is critical. Bad abstractions can be
-worse than duplicate code, so be careful! Having said this, if you can make
-a good abstraction, do it! Don't repeat yourself, otherwise you'll find yourself
-updating multiple places anytime you want to change one thing.
-
-**Bad:**
-```javascript
-function showDeveloperList(developers) {
-  developers.forEach((developer) => {
-    const expectedSalary = developer.calculateExpectedSalary();
-    const experience = developer.getExperience();
-    const githubLink = developer.getGithubLink();
-    const data = {
-      expectedSalary,
-      experience,
-      githubLink
-    };
-
-    render(data);
-  });
-}
-
-function showManagerList(managers) {
-  managers.forEach((manager) => {
-    const expectedSalary = manager.calculateExpectedSalary();
-    const experience = manager.getExperience();
-    const portfolio = manager.getMBAProjects();
-    const data = {
-      expectedSalary,
-      experience,
-      portfolio
-    };
-
-    render(data);
-  });
-}
-```
-
-**Good:**
-```javascript
-function showEmployeeList(employees) {
-  employees.forEach((employee) => {
-    const expectedSalary = employee.calculateExpectedSalary();
-    const experience = employee.getExperience();
-
-    const data = {
-      expectedSalary,
-      experience
-    };
-
-    switch (employee.type) {
-      case 'manager':
-        data.portfolio = employee.getMBAProjects();
-        break;
-      case 'developer':
-        data.githubLink = employee.getGithubLink();
-        break;
-    }
-
-    render(data);
-  });
-}
 ```
 **[⬆ back to top](#table-of-contents)**
 
@@ -2232,4 +2356,15 @@ names.add(​'joe'​); ​
 
 ```
 
-Say you want to keep a collection of credit cards that belong to a user. You may want to query whether a particular credit card exists in your collection. Array is a poor choice for such operations; we really need a Set. JavaScript has finally agreed with that sentiment. 
+Say you want to keep a collection of credit cards that belong to a user. You may want to query whether a particular credit card exists in your collection. Array is a poor choice for such operations; we really need a Set. JavaScript has finally agreed with that sentiment.
+
+```javascript
+const​ validator = { 
+  message: ​'is invalid.'​, 
+  setInvalidMessage(field) {
+    ​return​ ​`​${field}​ ​${​this​.message}​`​;
+  },
+};
+
+validator.setInvalidMessage(​'city'​); ​
+```
